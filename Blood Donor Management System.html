@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Blood Donor Management System</title>
+<style>
+:root{--bg:#f7f7f8;--fg:#1d1d1f;--card:#fff;--mut:#6b6b72;--acc:#c0392b;--bd:#e2e2e6;--ok:#1e8e4e;--no:#b26a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16161a;--fg:#ececee;--card:#222227;--mut:#9b9ba3;--acc:#ff6e5e;--bd:#38383f;--ok:#4cc380;--no:#e3a23b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#16161a;--fg:#ececee;--card:#222227;--mut:#9b9ba3;--acc:#ff6e5e;--bd:#38383f;--ok:#4cc380;--no:#e3a23b;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:.2em 0;color:var(--acc)}
+h2{font-size:1.05rem;margin:0 0 10px}
+.mut{color:var(--mut);margin:0 0 12px}
+nav{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--fg);padding:7px 14px}
+nav button.on,.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+button.sm{padding:3px 10px;font-size:.85rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+label{display:block;font-size:.8rem;color:var(--mut)}
+input,select{width:100%;font:inherit;padding:7px;border-radius:8px;border:1px solid var(--bd);background:var(--bg);color:var(--fg)}
+input[type=checkbox]{width:auto}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{color:var(--mut);font-weight:600}
+.tag{padding:1px 8px;border-radius:99px;font-size:.78rem;border:1px solid currentColor}
+.ok{color:var(--ok)}.no{color:var(--no)}
+#msg{min-height:1.4em;font-weight:600}
+#msg.err{color:var(--acc)}
+.bar{height:14px;background:var(--acc);border-radius:4px;min-width:2px}
+.row{display:grid;grid-template-columns:44px 1fr 30px;gap:8px;align-items:center;margin:4px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 14px}
+.stat b{display:block;font-size:1.5rem;color:var(--acc)}
+section{display:none}section.on{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Blood Donor Management &amp; Emergency Matching</h1>
+<p class="mut">Register donors, raise blood requests and find eligible, compatible donors instantly.</p>
+<nav>
+<button data-a="tab" data-v="donors" class="on">Donors</button>
+<button data-a="tab" data-v="requests">Requests &amp; Matching</button>
+<button data-a="tab" data-v="reports">Reports</button>
+<button data-a="sample">Load sample data</button>
+<button data-a="reset" id="rst">Reset all data</button>
+</nav>
+<div id="msg" role="status"></div>
+
+<section id="donors" class="on">
+<div class="card"><h2>Add donor</h2>
+<div class="grid">
+<div><label>Name</label><input id="dn"></div>
+<div><label>Age</label><input id="da" type="number" min="18" max="65"></div>
+<div><label>Gender</label><select id="dg"><option>M</option><option>F</option><option>O</option></select></div>
+<div><label>Blood group</label><select id="db"></select></div>
+<div><label>Contact</label><input id="dp"></div>
+<div><label>Area</label><input id="dr"></div>
+<div><label><input type="checkbox" id="dd"> Donated before</label><input id="dl" type="date"></div>
+<div><button class="pri" id="addD">Add donor</button></div>
+</div></div>
+<div class="card"><h2>All donors</h2>
+<input id="q" placeholder="Search by name, blood group or area" style="margin-bottom:10px">
+<div class="scroll" id="dt"></div></div>
+</section>
+
+<section id="requests">
+<div class="card"><h2>Raise blood request</h2>
+<div class="grid">
+<div><label>Patient name</label><input id="rp"></div>
+<div><label>Blood group needed</label><select id="rb"></select></div>
+<div><label>Units</label><input id="ru" type="number" min="1" value="1"></div>
+<div><label>Area / hospital</label><input id="rr"></div>
+<div><label>Urgency</label><select id="rg"><option value="1">High</option><option value="2">Medium</option><option value="3">Low</option></select></div>
+<div><button class="pri" id="addR">Add request</button></div>
+</div></div>
+<div class="card"><h2>Requests (pending first, most urgent on top)</h2><div class="scroll" id="rt"></div></div>
+<div id="mp"></div>
+</section>
+
+<section id="reports"><div id="rep"></div></section>
+</div>
+
+<script>
+const BGS=["O-","O+","A-","A+","B-","B+","AB-","AB+"],URG=["","High","Medium","Low"],DAY=864e5,GAP=90;
+let S={donors:[],requests:[],history:[]},sel=0,armed=0,tm;
+try{const x=localStorage.getItem("bdms");if(x)S=Object.assign(S,JSON.parse(x))}catch(e){}
+const save=()=>{try{localStorage.setItem("bdms",JSON.stringify(S))}catch(e){}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const nid=a=>a.length?Math.max(...a.map(x=>x.id))+1:1;
+const fmt=t=>t?new Date(t).toLocaleDateString("en-GB"):"Never";
+const same=(a,b)=>a.toLowerCase()===b.toLowerCase();
+const elig=d=>!d.last||Date.now()-d.last>=GAP*DAY;
+const wait=d=>Math.ceil((d.last+GAP*DAY-Date.now())/DAY);
+function compat(d,r){
+  if(d.endsWith("+")&&r.endsWith("-"))return false;
+  if(d[0]==="O"||r.startsWith("AB"))return true;
+  return d.length===r.length&&d.slice(0,-1)===r.slice(0,-1);
+}
+function msg(t,err){const m=$("msg");m.textContent=t;m.className=err?"err":"ok";clearTimeout(tm);tm=setTimeout(()=>m.textContent="",4000)}
+const tag=d=>elig(d)?'<span class="tag ok">Eligible</span>':'<span class="tag no">Wait '+wait(d)+' d</span>';
+const tbl=(h,rows)=>'<table><tr>'+h.map(x=>"<th>"+x+"</th>").join("")+"</tr>"+rows.join("")+"</table>";
+const tr=c=>"<tr>"+c.map(x=>"<td>"+x+"</td>").join("")+"</tr>";
+
+function donorsView(){
+  const q=$("q").value.trim().toLowerCase();
+  const rows=S.donors.filter(d=>!q||[d.name,d.bg,d.area].some(v=>v.toLowerCase().includes(q)));
+  $("dt").innerHTML=rows.length?tbl(["ID","Name","Age","Sex","Group","Contact","Area","Last donated","Status","Donations"],
+    rows.map(d=>tr([d.id,esc(d.name),d.age,d.sex,d.bg,esc(d.phone),esc(d.area),fmt(d.last),tag(d),d.count]))):'<p class="mut">No donors found.</p>';
+}
+
+function reqView(){
+  const rs=[...S.requests].sort((a,b)=>a.done-b.done||a.urgency-b.urgency||a.id-b.id);
+  $("rt").innerHTML=rs.length?tbl(["ID","Patient","Group","Units","Area","Urgency","Status","Date",""],
+    rs.map(r=>tr([r.id,esc(r.patient),r.bg,r.units,esc(r.area),URG[r.urgency],r.done?'<span class="tag ok">Fulfilled</span>':'<span class="tag no">Pending</span>',fmt(r.date),
+      r.done?"":'<button class="sm" data-a="pick" data-v="'+r.id+'">Find donors</button>']))):'<p class="mut">No requests yet.</p>';
+  const r=S.requests.find(x=>x.id===sel&&!x.done);
+  if(!r){$("mp").innerHTML="";return}
+  const m=S.donors.filter(d=>compat(d.bg,r.bg)&&elig(d))
+    .sort((a,b)=>(same(b.area,r.area)-same(a.area,r.area))||(a.last-b.last));
+  $("mp").innerHTML='<div class="card"><h2>Matching donors for request #'+r.id+" ("+esc(r.patient)+" needs "+r.bg+", "+r.units+" unit(s), "+esc(r.area)+")</h2>"+
+    (m.length?'<div class="scroll">'+tbl(["ID","Name","Group","Contact","Area","Same area","Last donated",""],
+      m.map(d=>tr([d.id,esc(d.name),d.bg,esc(d.phone),esc(d.area),same(d.area,r.area)?"Yes":"No",fmt(d.last),
+      '<button class="sm pri" data-a="give" data-v="'+d.id+'">Record donation</button>'])))+"</div>":'<p class="mut">No eligible and compatible donors found right now.</p>')+"</div>";
+}
+
+function give(did){
+  const r=S.requests.find(x=>x.id===sel),d=S.donors.find(x=>x.id===did);
+  if(!r||!d||r.done)return;
+  d.last=Date.now();d.count++;
+  if(--r.units<=0){r.units=0;r.done=true}
+  S.history.push({req:r.id,donor:d.name,patient:r.patient,bg:d.bg,date:Date.now()});
+  save();msg("Donation recorded for "+d.name+". Units still needed: "+r.units);
+  if(r.done)sel=0;
+  donorsView();reqView();
+}
+
+function repView(){
+  const cnt=BGS.map(b=>S.donors.filter(d=>d.bg===b).length),mx=Math.max(1,...cnt);
+  const areas={};S.donors.forEach(d=>{const k=d.area.toLowerCase();(areas[k]=areas[k]||{n:d.area,c:0}).c++});
+  const top=[...S.donors].sort((a,b)=>b.count-a.count).slice(0,5);
+  $("rep").innerHTML=
+   '<div class="stats">'+[["Donors",S.donors.length],["Eligible now",S.donors.filter(elig).length],["Pending requests",S.requests.filter(r=>!r.done).length],["Donations",S.history.length]]
+     .map(s=>'<div class="stat"><b>'+s[1]+"</b>"+s[0]+"</div>").join("")+"</div>"+
+   '<div class="card"><h2>Donors by blood group</h2>'+BGS.map((b,i)=>'<div class="row"><span>'+b+'</span><div class="bar" style="width:'+cnt[i]/mx*100+'%"></div><span>'+cnt[i]+"</span></div>").join("")+"</div>"+
+   '<div class="card"><h2>Donors by area</h2>'+(Object.values(areas).map(a=>'<div class="row" style="grid-template-columns:120px 1fr"><span>'+esc(a.n)+"</span><span>"+a.c+" donor(s)</span></div>").join("")||'<p class="mut">No data.</p>')+"</div>"+
+   '<div class="card"><h2>Most active donors</h2>'+(top.length?tbl(["#","Name","Group","Donations"],top.map((d,i)=>tr([i+1,esc(d.name),d.bg,d.count]))):'<p class="mut">No data.</p>')+"</div>"+
+   '<div class="card"><h2>Donation history</h2><div class="scroll">'+(S.history.length?tbl(["Request","Donor","Patient","Group","Date"],S.history.map(h=>tr([h.req,esc(h.donor),esc(h.patient),h.bg,fmt(h.date)]))):'<p class="mut">No donations recorded yet.</p>')+"</div></div>";
+}
+
+function tab(t){
+  document.querySelectorAll("section").forEach(s=>s.classList.toggle("on",s.id===t));
+  document.querySelectorAll("nav button[data-a=tab]").forEach(b=>b.classList.toggle("on",b.dataset.v===t));
+  if(t==="reports")repView();if(t==="requests")reqView();if(t==="donors")donorsView();
+}
+
+function sample(){
+  if(S.donors.length||S.requests.length)return msg("Sample data loads only into an empty system.",1);
+  const n=d=>Date.now()-d*DAY;
+  S.donors=[
+    {id:1,name:"Rahul Sharma",age:25,sex:"M",bg:"O-",phone:"9876500001",area:"Ludhiana",last:n(120),count:2},
+    {id:2,name:"Aman Verma",age:30,sex:"M",bg:"A+",phone:"9876500002",area:"Delhi",last:0,count:0},
+    {id:3,name:"Priya Singh",age:27,sex:"F",bg:"B+",phone:"9876500003",area:"Ludhiana",last:n(30),count:3},
+    {id:4,name:"Karan Mehta",age:35,sex:"M",bg:"AB+",phone:"9876500004",area:"Chandigarh",last:n(200),count:5}];
+  S.requests=[{id:1,patient:"Seema Verma",bg:"A+",units:2,area:"Ludhiana",urgency:1,done:false,date:Date.now()}];
+  save();donorsView();msg("Sample data loaded.");
+}
+
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-a]");if(!b)return;
+  const a=b.dataset.a,v=b.dataset.v;
+  if(a==="tab")tab(v);
+  else if(a==="pick"){sel=+v;reqView()}
+  else if(a==="give")give(+v);
+  else if(a==="sample")sample();
+  else if(a==="reset"){
+    if(!armed){armed=1;b.textContent="Click again to confirm";setTimeout(()=>{armed=0;b.textContent="Reset all data"},3000)}
+    else{S={donors:[],requests:[],history:[]};sel=0;armed=0;b.textContent="Reset all data";save();donorsView();reqView();msg("All data cleared.")}
+  }
+});
+
+$("q").oninput=donorsView;
+$("addD").onclick=()=>{
+  const f=i=>$(i).value.trim();
+  if(!f("dn")||!f("dr")||!(+f("da")>0))return msg("Please enter name, age and area.",1);
+  let last=0,count=0;
+  if($("dd").checked){last=f("dl")?new Date(f("dl")+"T12:00:00").getTime():Date.now();count=1}
+  S.donors.push({id:nid(S.donors),name:f("dn"),age:+f("da"),sex:$("dg").value,bg:$("db").value,phone:f("dp")||"-",area:f("dr"),last,count});
+  save();msg("Donor added.");
+  ["dn","da","dp","dr","dl"].forEach(i=>$(i).value="");$("dd").checked=false;donorsView();
+};
+$("addR").onclick=()=>{
+  const f=i=>$(i).value.trim();
+  if(!f("rp")||!f("rr")||!(+f("ru")>=1))return msg("Please enter patient, units and area.",1);
+  S.requests.push({id:nid(S.requests),patient:f("rp"),bg:$("rb").value,units:+f("ru"),area:f("rr"),urgency:+$("rg").value,done:false,date:Date.now()});
+  save();msg("Request added. Use Find donors to see matches.");
+  ["rp","rr"].forEach(i=>$(i).value="");$("ru").value=1;reqView();
+};
+["db","rb"].forEach(i=>$(i).innerHTML=BGS.map(b=>"<option>"+b+"</option>").join(""));
+donorsView();
+</script>
+</body>
+</html>
